@@ -29,16 +29,17 @@ log_file = logs_dir / "pipeline.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8")
-    ]
+    handlers=[logging.FileHandler(log_file, encoding="utf-8")],
 )
 
 # Page Setup
-st.set_page_config(page_title="Cricbuzz LiveStats Dashboard", page_icon="🏏", layout="wide")
+st.set_page_config(
+    page_title="Cricbuzz LiveStats Dashboard", page_icon="🏏", layout="wide"
+)
 
 # Custom Dark Mode styling
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Dark theme wrapper overrides */
     .reportview-container {
@@ -62,12 +63,18 @@ st.markdown("""
         color: white;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
 
 def main():
-    st.sidebar.markdown("<h2 style='text-align: center; color: #1e90ff;'>🏏 LiveStats Navigation</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        "<h2 style='text-align: center; color: #1e90ff;'>🏏 LiveStats Navigation</h2>",
+        unsafe_allow_html=True,
+    )
     st.sidebar.markdown("---")
-    
+
     pages = {
         "🏠 Home": render_home,
         "🔌 API Explorer": render_api_explorer,
@@ -80,21 +87,26 @@ def main():
         "📈 Analytics Dashboard": render_analytics_dashboard,
         "📜 Log Viewer": render_logs_page,
         "🧪 Testing Page": render_testing_page,
-        "⚡ Performance Monitor": render_performance_page
+        "⚡ Performance Monitor": render_performance_page,
     }
-    
+
     selected_page_name = st.sidebar.radio("Select View", list(pages.keys()))
-    
+
     st.sidebar.markdown("---")
-    st.sidebar.info("Cricbuzz LiveStats Platform v1.0. Developed using ONLY real Cricbuzz RapidAPI data.")
-    
+    st.sidebar.info(
+        "Cricbuzz LiveStats Platform v1.0. Developed using ONLY real Cricbuzz RapidAPI data."
+    )
+
     # Render selected view
     try:
         pages[selected_page_name]()
     except Exception as e:
         st.error("### ⚠️ Application Error")
-        st.write("An unexpected error occurred during rendering this page. Check details below:")
+        st.write(
+            "An unexpected error occurred during rendering this page. Check details below:"
+        )
         st.exception(e)
+
 
 if __name__ == "__main__":
     main()

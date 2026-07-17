@@ -9,18 +9,37 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.client import CricbuzzClient
-from services.validator import validate_matches_json, validate_scorecard_json, validate_player_json
+from services.validator import (
+    validate_matches_json,
+    validate_scorecard_json,
+    validate_player_json,
+)
 from services.transformer import (
-    transform_series, transform_venue, transform_team, transform_match,
-    transform_scorecard, extract_players_from_scorecard
+    transform_series,
+    transform_venue,
+    transform_team,
+    transform_match,
+    transform_scorecard,
+    extract_players_from_scorecard,
 )
 from services.ingestion import IngestionPipeline
-from database.models import Base, Series, Venue, Team, Match, Innings, BattingScore, BowlingScore, Player
+from database.models import (
+    Base,
+    Series,
+    Venue,
+    Team,
+    Match,
+    Innings,
+    BattingScore,
+    BowlingScore,
+    Player,
+)
+
 
 class TestCricbuzzClient(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        
+
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
@@ -40,7 +59,7 @@ class TestCricbuzzClient(unittest.TestCase):
         res = client.request("matches/v1/recent")
         self.assertEqual(res, {"status": "ok"})
         mock_request.assert_called_once()
-        
+
         # Verify that response is saved
         subdirs = list(client.raw_data_dir.glob("matches_v1_recent/*"))
         self.assertEqual(len(subdirs), 1)
@@ -71,6 +90,7 @@ class TestCricbuzzClient(unittest.TestCase):
         self.assertEqual(mock_request.call_count, 2)
         mock_sleep.assert_called_with(1)
 
+
 class TestValidator(unittest.TestCase):
     def setUp(self):
         self.valid_matches_data = {
@@ -90,19 +110,32 @@ class TestValidator(unittest.TestCase):
                                             "matchFormat": "T20",
                                             "matchState": "Complete",
                                             "status": "India won by 7 runs",
-                                            "team1": { "teamId": 2, "teamName": "India", "teamSName": "IND" },
-                                            "team2": { "teamId": 9, "teamName": "South Africa", "teamSName": "RSA" },
-                                            "venueInfo": { "id": 12, "name": "Kensington Oval", "city": "Bridgetown", "country": "Barbados" }
+                                            "team1": {
+                                                "teamId": 2,
+                                                "teamName": "India",
+                                                "teamSName": "IND",
+                                            },
+                                            "team2": {
+                                                "teamId": 9,
+                                                "teamName": "South Africa",
+                                                "teamSName": "RSA",
+                                            },
+                                            "venueInfo": {
+                                                "id": 12,
+                                                "name": "Kensington Oval",
+                                                "city": "Bridgetown",
+                                                "country": "Barbados",
+                                            },
                                         }
                                     }
-                                ]
+                                ],
                             }
                         }
-                    ]
+                    ],
                 }
             ]
         }
-        
+
         self.valid_scorecard_data = {
             "scorecard": [
                 {
@@ -120,7 +153,7 @@ class TestValidator(unittest.TestCase):
                             "fours": 6,
                             "sixes": 2,
                             "strkrate": "128.81",
-                            "outdec": "c Jansen b Maharaj"
+                            "outdec": "c Jansen b Maharaj",
                         }
                     ],
                     "bowler": [
@@ -130,9 +163,9 @@ class TestValidator(unittest.TestCase):
                             "maidens": 0,
                             "runs": 26,
                             "wickets": 2,
-                            "economy": "6.5"
+                            "economy": "6.5",
                         }
-                    ]
+                    ],
                 }
             ]
         }
@@ -147,6 +180,7 @@ class TestValidator(unittest.TestCase):
         invalid_data = {"matchId": 89452}  # Missing scorecard key
         self.assertFalse(validate_scorecard_json(invalid_data))
 
+
 class TestTransformer(unittest.TestCase):
     def test_transformations(self):
         series_data = {
@@ -154,20 +188,25 @@ class TestTransformer(unittest.TestCase):
             "seriesName": "IPL 2026",
             "startDate": "1719673200000",
             "endDate": "1719673200000",
-            "seriesType": "League"
+            "seriesType": "League",
         }
         series = transform_series(series_data)
         self.assertEqual(series.id, 123)
         self.assertEqual(series.name, "IPL 2026")
         self.assertEqual(series.series_type, "League")
 
-        team_data = { "teamId": 2, "teamName": "India", "teamSName": "IND" }
+        team_data = {"teamId": 2, "teamName": "India", "teamSName": "IND"}
         team = transform_team(team_data)
         self.assertEqual(team.id, 2)
         self.assertEqual(team.name, "India")
         self.assertEqual(team.short_name, "IND")
 
-        venue_data = { "id": 12, "name": "Wankhede", "city": "Mumbai", "country": "India" }
+        venue_data = {
+            "id": 12,
+            "name": "Wankhede",
+            "city": "Mumbai",
+            "country": "India",
+        }
         venue = transform_venue(venue_data)
         self.assertEqual(venue.id, 12)
         self.assertEqual(venue.name, "Wankhede")
@@ -177,8 +216,8 @@ class TestTransformer(unittest.TestCase):
                 "matchId": 999,
                 "matchDescription": "Match 1",
                 "matchFormat": "T20",
-                "team1": { "teamId": 1, "teamName": "Team A" },
-                "team2": { "teamId": 2, "teamName": "Team B" }
+                "team1": {"teamId": 1, "teamName": "Team A"},
+                "team2": {"teamId": 2, "teamName": "Team B"},
             }
         }
         match = transform_match(match_raw, series_id=123)
@@ -186,23 +225,25 @@ class TestTransformer(unittest.TestCase):
         self.assertEqual(match.series_id, 123)
         self.assertEqual(match.team1_id, 1)
 
+
 class TestIngestionPipeline(unittest.TestCase):
     def setUp(self):
         from sqlalchemy.pool import StaticPool
+
         self.engine = create_engine(
             "sqlite:///:memory:",
             connect_args={"check_same_thread": False},
-            poolclass=StaticPool
+            poolclass=StaticPool,
         )
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
-        
+
         # Patch get_db to return our in-memory SQLite database session
         self.db_patcher = patch("services.ingestion.get_db")
         self.mock_get_db = self.db_patcher.start()
-        
+
         from contextlib import contextmanager
-        
+
         @contextmanager
         def mock_db_ctx():
             session = self.SessionLocal()
@@ -214,7 +255,7 @@ class TestIngestionPipeline(unittest.TestCase):
                 raise
             finally:
                 session.close()
-        
+
         self.mock_get_db.side_effect = mock_db_ctx
 
     def tearDown(self):
@@ -241,15 +282,28 @@ class TestIngestionPipeline(unittest.TestCase):
                                             "matchFormat": "T20",
                                             "matchState": "Complete",
                                             "status": "India won by 7 runs",
-                                            "team1": { "teamId": 2, "teamName": "India", "teamSName": "IND" },
-                                            "team2": { "teamId": 9, "teamName": "South Africa", "teamSName": "RSA" },
-                                            "venueInfo": { "id": 12, "name": "Kensington Oval", "city": "Bridgetown", "country": "Barbados" }
+                                            "team1": {
+                                                "teamId": 2,
+                                                "teamName": "India",
+                                                "teamSName": "IND",
+                                            },
+                                            "team2": {
+                                                "teamId": 9,
+                                                "teamName": "South Africa",
+                                                "teamSName": "RSA",
+                                            },
+                                            "venueInfo": {
+                                                "id": 12,
+                                                "name": "Kensington Oval",
+                                                "city": "Bridgetown",
+                                                "country": "Barbados",
+                                            },
                                         }
                                     }
-                                ]
+                                ],
                             }
                         }
-                    ]
+                    ],
                 }
             ]
         }
@@ -273,7 +327,7 @@ class TestIngestionPipeline(unittest.TestCase):
                             "fours": 6,
                             "sixes": 2,
                             "strkrate": "128.81",
-                            "outdec": "c Jansen b Maharaj"
+                            "outdec": "c Jansen b Maharaj",
                         }
                     ],
                     "bowler": [
@@ -284,16 +338,16 @@ class TestIngestionPipeline(unittest.TestCase):
                             "maidens": 0,
                             "runs": 26,
                             "wickets": 2,
-                            "economy": "6.5"
+                            "economy": "6.5",
                         }
-                    ]
+                    ],
                 }
             ]
         }
 
         pipeline = IngestionPipeline()
         results = pipeline.ingest_matches_list(match_type="recent")
-        
+
         # Verify ingestion summary results
         self.assertEqual(results["status"], "success")
         self.assertEqual(results["matches_ingested"], 1)
@@ -304,14 +358,14 @@ class TestIngestionPipeline(unittest.TestCase):
 
         # Inspect SQLite contents to verify insertion and database models relationships
         session = self.SessionLocal()
-        
+
         # 1. Matches
         matches = session.query(Match).all()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].id, 89452)
         self.assertEqual(matches[0].venue_id, 12)
         self.assertEqual(matches[0].series_id, 3813)
-        
+
         # 2. Teams
         teams = session.query(Team).all()
         self.assertEqual(len(teams), 2)
@@ -355,6 +409,7 @@ class TestIngestionPipeline(unittest.TestCase):
         self.assertEqual(bowling_scores[0].player_id, 201)
 
         session.close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,16 +3,33 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 from database.db import get_db
-from database.models import Series, Venue, Team, Player, Match, Innings, BattingScore, BowlingScore
+from database.models import (
+    Series,
+    Venue,
+    Team,
+    Player,
+    Match,
+    Innings,
+    BattingScore,
+    BowlingScore,
+)
+
 
 def render_home():
-    st.markdown("<h1 style='text-align: center; color: #1e90ff;'>🏏 Cricbuzz LiveStats Platform</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 1.2rem; color: #888;'>Real-Time Cricket Data Ingestion, Normalization, and Analytics Dashboard</p>", unsafe_allow_html=True)
-    
+    st.markdown(
+        "<h1 style='text-align: center; color: #1e90ff;'>🏏 Cricbuzz LiveStats Platform</h1>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='text-align: center; font-size: 1.2rem; color: #888;'>Real-Time Cricket Data Ingestion, Normalization, and Analytics Dashboard</p>",
+        unsafe_allow_html=True,
+    )
+
     st.markdown("---")
-    
+
     # Onboarding quick start guide
-    st.markdown("""
+    st.markdown(
+        """
     <div style='background-color: #1a202c; padding: 18px; border-radius: 8px; border-left: 5px solid #1e90ff; margin-bottom: 25px;'>
         <h4 style='color: #1e90ff; margin-top: 0;'>🚀 Quick Start Guide - How to use this platform</h4>
         <ol style='color: #cbd5e0; margin-bottom: 0; line-height: 1.6;'>
@@ -23,11 +40,13 @@ def render_home():
             <li>Run and visualize the 25 complex pre-defined queries in <b>📊 SQL Analytics</b> or explore team comparisons in the <b>📈 Analytics Dashboard</b>.</li>
         </ol>
     </div>
-    """, unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+
     # Live stats
     st.subheader("📊 Live Database Volume & Statistics")
-    
+
     stats = {}
     try:
         with get_db() as session:
@@ -41,43 +60,55 @@ def render_home():
             stats["Bowling"] = session.query(BowlingScore).count()
     except Exception as e:
         st.error(f"Failed to connect to database to fetch stats: {e}")
-        stats = {k: 0 for k in ["Series", "Venues", "Teams", "Players", "Matches", "Innings", "Batting", "Bowling"]}
-        
+        stats = {
+            k: 0
+            for k in [
+                "Series",
+                "Venues",
+                "Teams",
+                "Players",
+                "Matches",
+                "Innings",
+                "Batting",
+                "Bowling",
+            ]
+        }
+
     m_col1, m_col2, m_col3, m_col4 = st.columns(4)
     m_col1.metric("🏆 Series", stats["Series"])
     m_col1.metric("🏟️ Venues", stats["Venues"])
-    
+
     m_col2.metric("👥 Teams", stats["Teams"])
     m_col2.metric("🏃 Players", stats["Players"])
-    
+
     m_col3.metric("🏏 Matches", stats["Matches"])
     m_col3.metric("📊 Innings", stats["Innings"])
-    
+
     m_col4.metric("🪵 Batting Records", stats["Batting"])
     m_col4.metric("🥎 Bowling Records", stats["Bowling"])
-    
+
     # Render table size chart
-    df_stats = pd.DataFrame([
-        {"Entity": k, "Record Count": v} for k, v in stats.items()
-    ])
-    
+    df_stats = pd.DataFrame(
+        [{"Entity": k, "Record Count": v} for k, v in stats.items()]
+    )
+
     fig = px.bar(
-        df_stats, 
-        x="Record Count", 
-        y="Entity", 
-        color="Entity", 
+        df_stats,
+        x="Record Count",
+        y="Entity",
+        color="Entity",
         orientation="h",
         template="plotly_dark",
         height=280,
-        title="Database Records Volume Breakdown"
+        title="Database Records Volume Breakdown",
     )
     st.plotly_chart(fig, use_container_width=True)
-    
+
     st.markdown("---")
-    
+
     # Architecture & Schema Map
     col_left, col_right = st.columns([3, 2])
-    
+
     with col_left:
         st.subheader("💡 System Architecture")
         st.markdown("""
@@ -86,7 +117,7 @@ def render_home():
         - **Schema Normalizer:** Transforms nested, raw API arrays into relational structures for Series, Teams, Players, Matches, and scorecard metrics.
         - **Quality Verification:** Standardizes decimals for cricket overs (e.g. converting `15.6` balls into clean integer targets), verifying foreign key integrity dynamically.
         """)
-        
+
     with col_right:
         st.subheader("🔗 Relational Schema Map")
         st.markdown("""

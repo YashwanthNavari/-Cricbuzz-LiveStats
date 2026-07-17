@@ -6,16 +6,19 @@ logger = logging.getLogger("ValidatorService")
 
 # Pydantic models for validation
 
+
 class TeamSchema(BaseModel):
     teamId: int
     teamName: str
     teamSName: Optional[str] = None
+
 
 class VenueSchema(BaseModel):
     id: Optional[int] = None
     name: str
     city: Optional[str] = None
     country: Optional[str] = None
+
 
 class MatchInfoSchema(BaseModel):
     matchId: int
@@ -28,20 +31,25 @@ class MatchInfoSchema(BaseModel):
     venueInfo: Optional[VenueSchema] = None
     startDate: Optional[str] = None
 
+
 class SeriesAdWrapperSchema(BaseModel):
     seriesId: int
     seriesName: str
     matches: List[Dict[str, Any]]  # Matches can be validated downstream
 
+
 class SeriesMatchSchema(BaseModel):
     seriesAdWrapper: Optional[SeriesAdWrapperSchema] = None
+
 
 class TypeMatchSchema(BaseModel):
     matchType: Optional[str] = None
     seriesMatches: List[Dict[str, Any]] = []
 
+
 class MatchesResponseSchema(BaseModel):
     typeMatches: Optional[List[TypeMatchSchema]] = None
+
 
 # Scorecard validation schemas
 class BatsmanScoreSchema(BaseModel):
@@ -53,6 +61,7 @@ class BatsmanScoreSchema(BaseModel):
     strkrate: Optional[Any] = "0.0"
     outdec: Optional[str] = None
 
+
 class BowlerScoreSchema(BaseModel):
     id: int
     overs: Optional[Any] = "0.0"
@@ -61,6 +70,7 @@ class BowlerScoreSchema(BaseModel):
     wickets: Optional[int] = 0
     economy: Optional[Any] = "0.0"
 
+
 class InningSchema(BaseModel):
     inningsid: int
     score: Optional[int] = 0
@@ -68,6 +78,7 @@ class InningSchema(BaseModel):
     overs: Optional[float] = 0.0
     batsman: Optional[List[BatsmanScoreSchema]] = []
     bowler: Optional[List[BowlerScoreSchema]] = []
+
 
 class ScorecardResponseSchema(BaseModel):
     scorecard: List[InningSchema]
@@ -97,6 +108,7 @@ def validate_matches_json(data: Dict[str, Any]) -> bool:
         logger.error(f"Matches JSON validation failed: {e}")
         return False
 
+
 def validate_scorecard_json(data: Dict[str, Any]) -> bool:
     """Validates the scorecard JSON structure."""
     try:
@@ -109,6 +121,7 @@ def validate_scorecard_json(data: Dict[str, Any]) -> bool:
         logger.error(f"Scorecard JSON validation failed: {e}")
         return False
 
+
 def validate_player_json(data: Dict[str, Any]) -> bool:
     """Validates the player details JSON structure."""
     try:
@@ -116,7 +129,7 @@ def validate_player_json(data: Dict[str, Any]) -> bool:
         player_data = data.get("player", data)
         if "id" not in player_data and "playerId" in player_data:
             player_data["id"] = player_data["playerId"]
-        
+
         PlayerResponseSchema(**player_data)
         return True
     except ValidationError as e:

@@ -12,7 +12,18 @@ from api.client import CricbuzzClient
 from api.matches import get_matches_list
 from api.scorecard import get_match_scorecard
 from database.db import get_db
-from database.models import Series, Venue, Team, Player, Match, Innings, BattingScore, BowlingScore, FieldingRecord, Partnership
+from database.models import (
+    Series,
+    Venue,
+    Team,
+    Player,
+    Match,
+    Innings,
+    BattingScore,
+    BowlingScore,
+    FieldingRecord,
+    Partnership,
+)
 from services.validator import validate_matches_json, validate_scorecard_json
 from services.transformer import (
     transform_series,
@@ -20,10 +31,11 @@ from services.transformer import (
     transform_team,
     transform_match,
     transform_scorecard,
-    extract_players_from_scorecard
+    extract_players_from_scorecard,
 )
 
 logger = logging.getLogger("IngestionPipeline")
+
 
 class IngestionPipeline:
     """
@@ -54,13 +66,15 @@ class IngestionPipeline:
 
     def _upsert_venue(self, session: Session, venue: Venue) -> Venue:
         if venue.id is None:
-            existing = session.query(Venue).filter_by(name=venue.name, city=venue.city).first()
+            existing = (
+                session.query(Venue).filter_by(name=venue.name, city=venue.city).first()
+            )
             if existing:
                 return existing
             session.add(venue)
             session.flush()
             return venue
-            
+
         existing = session.get(Venue, venue.id)
         if existing:
             existing.name = venue.name
@@ -148,7 +162,9 @@ class IngestionPipeline:
             return {"status": "failed", "error": str(e)}
 
         if not validate_matches_json(raw_response):
-            logger.critical("Matches list structural validation failed. Aborting database run.")
+            logger.critical(
+                "Matches list structural validation failed. Aborting database run."
+            )
             return {"status": "failed", "error": "validation_failed"}
 
         # Collect all matches to process
@@ -164,12 +180,14 @@ class IngestionPipeline:
                 for m_data in series_wrapper.get("matches", []):
                     match_info = m_data.get("matchInfo")
                     if match_info:
-                        flat_matches_to_process.append({
-                            "series_id": series_id,
-                            "series_name": series_name,
-                            "match_data": m_data,
-                            "match_info": match_info
-                        })
+                        flat_matches_to_process.append(
+                            {
+                                "series_id": series_id,
+                                "series_name": series_name,
+                                "match_data": m_data,
+                                "match_info": match_info,
+                            }
+                        )
 
         total_found = len(flat_matches_to_process)
         matches_ingested = 0
@@ -178,10 +196,14 @@ class IngestionPipeline:
         errors_encountered = 0
         detailed_errors = []
 
-        logger.info(f"Discovered {total_found} matches to ingest. Beginning processing...")
+        logger.info(
+            f"Discovered {total_found} matches to ingest. Beginning processing..."
+        )
 
         # Process matches with a terminal progress bar (tqdm)
-        for item in tqdm(flat_matches_to_process, desc="Ingesting Matches", unit="match"):
+        for item in tqdm(
+            flat_matches_to_process, desc="Ingesting Matches", unit="match"
+        ):
             series_id = item["series_id"]
             series_name = item["series_name"]
             m_data = item["match_data"]
@@ -225,7 +247,9 @@ class IngestionPipeline:
                 if is_completed:
                     # Resume logic: Check if scorecard is already in DB
                     if self.is_scorecard_ingested(match_id):
-                        logger.info(f"Match {match_id} scorecard already exists in DB. Skipping API download.")
+                        logger.info(
+                            f"Match {match_id} scorecard already exists in DB. Skipping API download."
+                        )
                         scorecards_skipped += 1
                     else:
                         success = self.ingest_scorecard(match_id)
@@ -233,7 +257,9 @@ class IngestionPipeline:
                             scorecards_fetched += 1
                         else:
                             errors_encountered += 1
-                            detailed_errors.append(f"Match {match_id}: Scorecard ingestion failed.")
+                            detailed_errors.append(
+                                f"Match {match_id}: Scorecard ingestion failed."
+                            )
 
             except Exception as e:
                 logger.error(f"Failed to ingest match {match_id} details: {e}")
@@ -254,7 +280,7 @@ class IngestionPipeline:
             "errors_encountered": errors_encountered,
             "scorecards_ingested": scorecards_fetched,
             "errors": errors_encountered,
-            "error_details": detailed_errors
+            "error_details": detailed_errors,
         }
 
         # Write execution report to file
@@ -262,7 +288,9 @@ class IngestionPipeline:
         try:
             with open(report_file, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2, ensure_ascii=False)
-            logger.info(f"Ingestion run report generated: processed_data/reports/ingestion_report_{timestamp}.json")
+            logger.info(
+                f"Ingestion run report generated: processed_data/reports/ingestion_report_{timestamp}.json"
+            )
         except Exception as e:
             logger.error(f"Failed to save ingestion report: {e}")
 
@@ -277,11 +305,15 @@ class IngestionPipeline:
         try:
             raw_scorecard = get_match_scorecard(self.client, match_id)
         except Exception as e:
-            logger.error(f"Network error downloading scorecard for Match {match_id}: {e}")
+            logger.error(
+                f"Network error downloading scorecard for Match {match_id}: {e}"
+            )
             return False
 
         if not validate_scorecard_json(raw_scorecard):
-            logger.error(f"Downloaded scorecard structural validation failed for Match {match_id}")
+            logger.error(
+                f"Downloaded scorecard structural validation failed for Match {match_id}"
+            )
             return False
 
         try:
@@ -289,7 +321,9 @@ class IngestionPipeline:
                 # 1. Confirm Match exists
                 match_ref = session.get(Match, match_id)
                 if not match_ref:
-                    logger.error(f"Match ID {match_id} does not exist in DB. Cannot attach scorecard.")
+                    logger.error(
+                        f"Match ID {match_id} does not exist in DB. Cannot attach scorecard."
+                    )
                     return False
 
                 # 2. Extract and Upsert Players
@@ -301,12 +335,16 @@ class IngestionPipeline:
                 # Construct team name mappings to resolve IDs
                 team_name_to_id = {
                     match_ref.team1.name.lower().strip(): match_ref.team1_id,
-                    match_ref.team2.name.lower().strip(): match_ref.team2_id
+                    match_ref.team2.name.lower().strip(): match_ref.team2_id,
                 }
                 if match_ref.team1.short_name:
-                    team_name_to_id[match_ref.team1.short_name.lower().strip()] = match_ref.team1_id
+                    team_name_to_id[match_ref.team1.short_name.lower().strip()] = (
+                        match_ref.team1_id
+                    )
                 if match_ref.team2.short_name:
-                    team_name_to_id[match_ref.team2.short_name.lower().strip()] = match_ref.team2_id
+                    team_name_to_id[match_ref.team2.short_name.lower().strip()] = (
+                        match_ref.team2_id
+                    )
 
                 # 3. Transform Scorecard Innings & Scores
                 innings_list = transform_scorecard(
@@ -314,16 +352,17 @@ class IngestionPipeline:
                     match_id=match_id,
                     team1_id=match_ref.team1_id,
                     team2_id=match_ref.team2_id,
-                    team_name_to_id=team_name_to_id
+                    team_name_to_id=team_name_to_id,
                 )
 
                 # 4. Upsert Innings & Scores
                 for inning in innings_list:
                     # Check existing Innings
-                    existing_inn = session.query(Innings).filter_by(
-                        match_id=match_id,
-                        innings_num=inning.innings_num
-                    ).first()
+                    existing_inn = (
+                        session.query(Innings)
+                        .filter_by(match_id=match_id, innings_num=inning.innings_num)
+                        .first()
+                    )
 
                     if existing_inn:
                         # Update innings metrics
@@ -332,12 +371,20 @@ class IngestionPipeline:
                         existing_inn.overs = inning.overs
 
                         # Delete old children (Batting, Bowling, Fielding, Partnerships) to clean overwrite
-                        session.query(BattingScore).filter_by(innings_id=existing_inn.id).delete()
-                        session.query(BowlingScore).filter_by(innings_id=existing_inn.id).delete()
-                        session.query(FieldingRecord).filter_by(innings_id=existing_inn.id).delete()
-                        session.query(Partnership).filter_by(innings_id=existing_inn.id).delete()
+                        session.query(BattingScore).filter_by(
+                            innings_id=existing_inn.id
+                        ).delete()
+                        session.query(BowlingScore).filter_by(
+                            innings_id=existing_inn.id
+                        ).delete()
+                        session.query(FieldingRecord).filter_by(
+                            innings_id=existing_inn.id
+                        ).delete()
+                        session.query(Partnership).filter_by(
+                            innings_id=existing_inn.id
+                        ).delete()
                         session.flush()
-                        
+
                         target_inn_id = existing_inn.id
                     else:
                         session.add(inning)
@@ -349,16 +396,16 @@ class IngestionPipeline:
                     for bat in inning.batting_scores:
                         bat.innings_id = target_inn_id
                         session.add(bat)
-                        
+
                         # Populate aggregated fielding record for involved fielder
                         if bat.fielder_id and bat.dismissal_type:
                             is_catch = bat.dismissal_type.lower() == "caught"
                             is_stumping = bat.dismissal_type.lower() == "stumped"
                             is_runout = bat.dismissal_type.lower() == "run out"
-                            
+
                             if not (is_catch or is_stumping or is_runout):
                                 continue
-                                
+
                             f_id = bat.fielder_id
                             if f_id in fielding_map:
                                 fr = fielding_map[f_id]
@@ -370,11 +417,12 @@ class IngestionPipeline:
                                     fr.run_outs += 1
                             else:
                                 # Check if it already exists in database
-                                fr = session.query(FieldingRecord).filter_by(
-                                    innings_id=target_inn_id,
-                                    player_id=f_id
-                                ).first()
-                                
+                                fr = (
+                                    session.query(FieldingRecord)
+                                    .filter_by(innings_id=target_inn_id, player_id=f_id)
+                                    .first()
+                                )
+
                                 if fr:
                                     if is_catch:
                                         fr.catches += 1
@@ -388,7 +436,7 @@ class IngestionPipeline:
                                         player_id=f_id,
                                         catches=1 if is_catch else 0,
                                         stumpings=1 if is_stumping else 0,
-                                        run_outs=1 if is_runout else 0
+                                        run_outs=1 if is_runout else 0,
                                     )
                                     session.add(fr)
                                 fielding_map[f_id] = fr
@@ -401,42 +449,56 @@ class IngestionPipeline:
                 winner_team_id = match_ref.winner_id
                 potm_player_id = None
                 best_score = -1.0
-                
+
                 player_performance = {}
                 for inn in innings_list:
                     # batsman scores
                     for bat in inn.batting_scores:
                         pid = bat.player_id
                         p_team = inn.batting_team_id
-                        player_performance.setdefault(pid, {"team": p_team, "score": 0.0})
+                        player_performance.setdefault(
+                            pid, {"team": p_team, "score": 0.0}
+                        )
                         player_performance[pid]["score"] += float(bat.runs)
                     # bowler scores
                     for bowl in inn.bowling_scores:
                         pid = bowl.player_id
                         p_team = inn.bowling_team_id
-                        player_performance.setdefault(pid, {"team": p_team, "score": 0.0})
+                        player_performance.setdefault(
+                            pid, {"team": p_team, "score": 0.0}
+                        )
                         player_performance[pid]["score"] += float(bowl.wickets) * 25.0
 
                 # Filter by winning team if available
                 candidates = []
                 if winner_team_id:
-                    candidates = [(pid, info) for pid, info in player_performance.items() if info["team"] == winner_team_id]
-                
+                    candidates = [
+                        (pid, info)
+                        for pid, info in player_performance.items()
+                        if info["team"] == winner_team_id
+                    ]
+
                 if not candidates:
                     candidates = list(player_performance.items())
-                    
+
                 for pid, info in candidates:
                     if info["score"] > best_score:
                         best_score = info["score"]
                         potm_player_id = pid
-                        
+
                 if potm_player_id:
                     match_ref.player_of_the_match_id = potm_player_id
-                    logger.info(f"Calculated Player of the Match for Match {match_id}: Player ID {potm_player_id} (Score: {best_score})")
+                    logger.info(
+                        f"Calculated Player of the Match for Match {match_id}: Player ID {potm_player_id} (Score: {best_score})"
+                    )
 
-                logger.info(f"Successfully processed and stored scorecard for Match {match_id}")
+                logger.info(
+                    f"Successfully processed and stored scorecard for Match {match_id}"
+                )
                 return True
 
         except Exception as e:
-            logger.error(f"Database transaction error processing scorecard for Match {match_id}: {e}")
+            logger.error(
+                f"Database transaction error processing scorecard for Match {match_id}: {e}"
+            )
             return False

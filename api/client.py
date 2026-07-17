@@ -11,10 +11,10 @@ from dotenv import load_dotenv
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("CricbuzzClient")
+
 
 class CricbuzzClient:
     """
@@ -25,11 +25,14 @@ class CricbuzzClient:
     def __init__(self) -> None:
         load_dotenv()
         self.api_key: Optional[str] = os.getenv("RAPIDAPI_KEY")
-        self.api_host: str = os.getenv("RAPIDAPI_HOST", "cricbuzz-cricket.p.rapidapi.com")
+        self.api_host: str = os.getenv(
+            "RAPIDAPI_HOST", "cricbuzz-cricket.p.rapidapi.com"
+        )
 
         if not self.api_key or self.api_key == "your_rapidapi_key_here":
             try:
                 import streamlit as st
+
                 self.api_key = st.secrets.get("RAPIDAPI_KEY") or self.api_key
                 self.api_host = st.secrets.get("RAPIDAPI_HOST") or self.api_host
             except Exception:
@@ -38,14 +41,18 @@ class CricbuzzClient:
         self.base_url: str = f"https://{self.api_host}"
 
         if not self.api_key or self.api_key == "your_rapidapi_key_here":
-            logger.warning("RAPIDAPI_KEY is not configured or is set to placeholder in .env")
+            logger.warning(
+                "RAPIDAPI_KEY is not configured or is set to placeholder in .env"
+            )
 
         self.session = requests.Session()
-        self.session.headers.update({
-            "x-rapidapi-key": self.api_key or "",
-            "x-rapidapi-host": self.api_host,
-            "Content-Type": "application/json"
-        })
+        self.session.headers.update(
+            {
+                "x-rapidapi-key": self.api_key or "",
+                "x-rapidapi-host": self.api_host,
+                "Content-Type": "application/json",
+            }
+        )
 
         # Setup raw_data directory path
         current_file = Path(__file__).resolve()
@@ -66,7 +73,7 @@ class CricbuzzClient:
         data: Optional[Dict[str, Any]] = None,
         timeout: int = 15,
         max_retries: int = 3,
-        backoff_factor: float = 2.0
+        backoff_factor: float = 2.0,
     ) -> Dict[str, Any]:
         """
         Sends an HTTP request to the Cricbuzz API, handles rate limits and retries,
@@ -76,32 +83,40 @@ class CricbuzzClient:
         endpoint_clean = endpoint.strip("/").replace("/", "_")
 
         for attempt in range(max_retries + 1):
-            logger.info(f"Sending {method} {url} | Params: {params} | Attempt: {attempt + 1}")
+            logger.info(
+                f"Sending {method} {url} | Params: {params} | Attempt: {attempt + 1}"
+            )
             start_time = time.time()
 
             try:
                 response = self.session.request(
-                    method=method,
-                    url=url,
-                    params=params,
-                    json=data,
-                    timeout=timeout
+                    method=method, url=url, params=params, json=data, timeout=timeout
                 )
                 latency = time.time() - start_time
-                logger.info(f"Response status: {response.status_code} | Latency: {latency:.2f}s")
+                logger.info(
+                    f"Response status: {response.status_code} | Latency: {latency:.2f}s"
+                )
 
                 # Handle HTTP 429 (Too Many Requests / Rate Limit)
                 if response.status_code == 429:
                     retry_after = response.headers.get("Retry-After")
-                    sleep_time = int(retry_after) if (retry_after and retry_after.isdigit()) else (backoff_factor ** attempt)
-                    logger.warning(f"Rate limited (429). Retrying after sleeping for {sleep_time}s...")
+                    sleep_time = (
+                        int(retry_after)
+                        if (retry_after and retry_after.isdigit())
+                        else (backoff_factor**attempt)
+                    )
+                    logger.warning(
+                        f"Rate limited (429). Retrying after sleeping for {sleep_time}s..."
+                    )
                     time.sleep(sleep_time)
                     continue
 
                 # Handle transient 5xx server errors
                 if response.status_code >= 500 and attempt < max_retries:
-                    sleep_time = backoff_factor ** attempt
-                    logger.warning(f"Server error ({response.status_code}). Retrying in {sleep_time}s...")
+                    sleep_time = backoff_factor**attempt
+                    logger.warning(
+                        f"Server error ({response.status_code}). Retrying in {sleep_time}s..."
+                    )
                     time.sleep(sleep_time)
                     continue
 
@@ -113,7 +128,9 @@ class CricbuzzClient:
                     response_json = response.json()
                 except ValueError as e:
                     logger.error(f"Failed to parse JSON response: {e}")
-                    raise ValueError(f"Invalid JSON returned from server: {response.text}") from e
+                    raise ValueError(
+                        f"Invalid JSON returned from server: {response.text}"
+                    ) from e
 
                 # Save raw response to files to maintain complete API raw logs
                 self._save_raw_response(endpoint_clean, response_json)
@@ -123,7 +140,7 @@ class CricbuzzClient:
             except requests.exceptions.Timeout as e:
                 logger.error(f"Timeout on attempt {attempt + 1} for {url}: {e}")
                 if attempt < max_retries:
-                    sleep_time = backoff_factor ** attempt
+                    sleep_time = backoff_factor**attempt
                     logger.info(f"Retrying in {sleep_time}s...")
                     time.sleep(sleep_time)
                 else:
