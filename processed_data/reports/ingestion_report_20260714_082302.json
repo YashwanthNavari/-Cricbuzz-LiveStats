@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "timestamp": "2026-07-14T08:23:02.304470+00:00",
+  "match_type": "recent",
+  "duration_seconds": 0.16,
+  "total_matches_discovered": 1,
+  "matches_ingested": 1,
+  "scorecards_fetched_api": 1,
+  "scorecards_skipped_db_resume": 0,
+  "errors_encountered": 0,
+  "scorecards_ingested": 1,
+  "errors": 0,
+  "error_details": []
+}
