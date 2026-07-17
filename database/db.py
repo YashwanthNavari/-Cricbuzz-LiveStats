@@ -1,49 +1,87 @@
+import logging
 import os
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
+
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 
-# Load environment variables
-load_dotenv()
+logger = logging.getLogger("db")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+
+def _resolve_database_url() -> Optional[str]:
+    """Resolve DATABASE_URL from .env first, then Streamlit secrets as fallback."""
+    load_dotenv()
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
     try:
         import streamlit as st
 
-        DATABASE_URL = st.secrets.get("DATABASE_URL")
+        url = st.secrets.get("DATABASE_URL")
+        if url:
+            return url
     except Exception:
         pass
+    return None
 
-if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is not set. Please set it in .env or Streamlit Secrets."
-    )
 
-# Create engine
-engine_kwargs = {"pool_pre_ping": True}
-if DATABASE_URL.startswith("sqlite"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-else:
-    engine_kwargs["pool_size"] = 10
-    engine_kwargs["max_overflow"] = 20
+def _build_engine(database_url: str):
+    """Build and return a SQLAlchemy engine for the given URL."""
+    from sqlalchemy import create_engine
 
-engine = create_engine(DATABASE_URL, **engine_kwargs)
+    engine_kwargs = {"pool_pre_ping": True}
+    if database_url.startswith("sqlite"):
+        engine_kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        engine_kwargs["pool_size"] = 10
+        engine_kwargs["max_overflow"] = 20
+    return create_engine(database_url, **engine_kwargs)
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# --------------------------------------------------------------------------- #
+# Lazy singletons — nothing is created at import time                          #
+# --------------------------------------------------------------------------- #
+_engine = None
+_SessionLocal = None
+
+
+def get_engine():
+    """Return (and lazily create) the SQLAlchemy engine."""
+    global _engine
+    if _engine is None:
+        url = _resolve_database_url()
+        if not url:
+            raise ValueError(
+                "DATABASE_URL is not configured. "
+                "Add it to your .env file or to the Streamlit app Secrets panel "
+                "(Settings → Secrets) in the format:\n"
+                '  DATABASE_URL = "sqlite:///cricbuzz_db.sqlite"'
+            )
+        _engine = _build_engine(url)
+    return _engine
+
+
+def get_session_factory():
+    """Return (and lazily create) the SQLAlchemy SessionLocal factory."""
+    global _SessionLocal
+    if _SessionLocal is None:
+        from sqlalchemy.orm import sessionmaker
+
+        _SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=get_engine()
+        )
+    return _SessionLocal
 
 
 def init_db() -> None:
-    """Initializes the database by creating tables if they do not exist."""
-    from .models import Base
+    """Create all tables and run auto-migration checks.  Safe to call repeatedly."""
     from sqlalchemy import inspect, text
 
+    from .models import Base
+
+    engine = get_engine()
     Base.metadata.create_all(bind=engine)
 
-    # Automatic migration checks
     try:
         inspector = inspect(engine)
         if "matches" in inspector.get_table_names():
@@ -71,19 +109,14 @@ def init_db() -> None:
                                 f"ALTER TABLE innings ADD COLUMN {col} INTEGER DEFAULT 0"
                             )
                         )
-    except Exception as e:
-        import logging
-
-        logging.warning(f"Auto-migration check skipped or failed: {e}")
-
-
-# Run schema initialization and migration check on module load
-init_db()
+    except Exception as exc:
+        logger.warning("Auto-migration check skipped or failed: %s", exc)
 
 
 @contextmanager
-def get_db() -> Generator[Session, None, None]:
-    """Provide a transactional scope around a series of operations."""
+def get_db() -> Generator:
+    """Provide a transactional database session scope."""
+    SessionLocal = get_session_factory()
     session = SessionLocal()
     try:
         yield session
