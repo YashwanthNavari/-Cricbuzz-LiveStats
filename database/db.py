@@ -10,7 +10,14 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set in .env")
+    try:
+        import streamlit as st
+        DATABASE_URL = st.secrets.get("DATABASE_URL")
+    except Exception:
+        pass
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set. Please set it in .env or Streamlit Secrets.")
 
 # Create engine
 engine_kwargs = {"pool_pre_ping": True}

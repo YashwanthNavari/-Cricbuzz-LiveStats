@@ -26,6 +26,15 @@ class CricbuzzClient:
         load_dotenv()
         self.api_key: Optional[str] = os.getenv("RAPIDAPI_KEY")
         self.api_host: str = os.getenv("RAPIDAPI_HOST", "cricbuzz-cricket.p.rapidapi.com")
+
+        if not self.api_key or self.api_key == "your_rapidapi_key_here":
+            try:
+                import streamlit as st
+                self.api_key = st.secrets.get("RAPIDAPI_KEY") or self.api_key
+                self.api_host = st.secrets.get("RAPIDAPI_HOST") or self.api_host
+            except Exception:
+                pass
+
         self.base_url: str = f"https://{self.api_host}"
 
         if not self.api_key or self.api_key == "your_rapidapi_key_here":
