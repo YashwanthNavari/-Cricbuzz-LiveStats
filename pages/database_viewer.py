@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import inspect, text
-from database.db import get_db, engine
+from database.db import get_db, get_engine
 
 
 def render_database_viewer():
@@ -15,6 +15,11 @@ def render_database_viewer():
     st.markdown("---")
 
     # Inspect tables list
+    try:
+        engine = get_engine()
+    except ValueError as e:
+        st.error(f"⚠️ Database not configured: {e}")
+        return
     inspector = inspect(engine)
     tables = inspector.get_table_names()
 

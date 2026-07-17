@@ -3,7 +3,7 @@ import time
 import unittest
 import io
 from sqlalchemy import text, inspect
-from database.db import get_db, engine
+from database.db import get_db, get_engine
 from api.client import CricbuzzClient
 
 
@@ -11,7 +11,7 @@ def run_db_conn_test():
     """Test connecting to DB and running simple query."""
     start = time.time()
     try:
-        with engine.connect() as conn:
+        with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return (
             True,
@@ -37,7 +37,7 @@ def run_tables_check_test():
         "partnerships",
     }
     try:
-        inspector = inspect(engine)
+        inspector = inspect(get_engine())
         actual = set(inspector.get_table_names())
         missing = expected - actual
         if not missing:

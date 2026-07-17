@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 current_dir = Path(__file__).resolve().parent
 sys.path.append(str(current_dir))
 
-from database.db import get_db, engine
+from database.db import get_db, get_engine
 from database.models import (
     Player,
     Team,
