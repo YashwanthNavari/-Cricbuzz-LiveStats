@@ -1,9 +1,19 @@
 # 🏏 Cricbuzz LiveStats Platform
 
+<div align="center">
+
 [![Python Version](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge&logo=python)](https://python.org)
-[![Streamlit App](https://img.shields.io/badge/Streamlit-App-FF4B4B.svg?style=for-the-badge&logo=streamlit)](https://streamlit.io)
 [![Database](https://img.shields.io/badge/Database-SQL-0064a5.svg?style=for-the-badge&logo=postgresql)](https://postgresql.org)
 [![CI Pipeline](https://img.shields.io/github/actions/workflow/status/YashwanthNavari/-Cricbuzz-LiveStats/python.yml?branch=main&style=for-the-badge&logo=github-actions)](https://github.com/YashwanthNavari/-Cricbuzz-LiveStats/actions)
+[![Live App](https://img.shields.io/badge/Streamlit-Live-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://w2h2kfk6yk63r2qhoxrbql.streamlit.app/)
+
+### ⚡ [🚀 CLICK HERE TO VISIT THE LIVE DASHBOARD 🚀](https://w2h2kfk6yk63r2qhoxrbql.streamlit.app/) ⚡
+
+*Explore real-time cricket matches, normalized statistics, and data quality check results instantly!*
+
+</div>
+
+---
 
 Real-Time Cricket Ingestion, Third Normal Form (3NF) Normalization, Data Quality Diagnostics, and a 12-Page Analytics Dashboard built using Python, SQLite/PostgreSQL, SQL, Plotly, and the Cricbuzz RapidAPI.
 
