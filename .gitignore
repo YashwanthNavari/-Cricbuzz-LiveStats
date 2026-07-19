@@ -122,4 +122,5 @@ cricbuzz_db.sqlite
 .env
 .env.local
 .env.*.local
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
