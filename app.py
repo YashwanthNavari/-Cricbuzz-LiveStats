@@ -32,6 +32,17 @@ logging.basicConfig(
     handlers=[logging.FileHandler(log_file, encoding="utf-8")],
 )
 
+# Initialize database tables on startup if they don't exist
+@st.cache_resource
+def initialize_database():
+    from database.db import init_db
+    try:
+        init_db()
+    except Exception as e:
+        logging.error(f"Failed to initialize database: {e}")
+
+initialize_database()
+
 # Page Setup
 st.set_page_config(
     page_title="Cricbuzz LiveStats Dashboard", page_icon="🏏", layout="wide"
