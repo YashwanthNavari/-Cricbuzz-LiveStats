@@ -45,7 +45,7 @@ class DatasetValidator:
 
         # Test connection
         try:
-            with engine.connect() as conn:
+            with get_engine().connect() as conn:
                 conn.execute(text("SELECT 1"))
         except Exception as e:
             logger.error(f"Cannot connect to the database defined in .env: {e}")

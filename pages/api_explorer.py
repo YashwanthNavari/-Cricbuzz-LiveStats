@@ -128,16 +128,40 @@ DATABASE_URL = "sqlite:///cricbuzz_db.sqlite"</pre>
 
         except Exception as e:
             err_msg = str(e)
-            if "Max retries" in err_msg or "401" in err_msg or "403" in err_msg:
-                st.error("❌ **API Request Failed**")
+            st.error("❌ **API Request Failed**")
+
+            # Determine the primary error type and show specialized feedback
+            if "quota exceeded" in err_msg.lower():
+                # Quota Exceeded Card
                 st.markdown(
                     """
                     <div style='background:#1a202c;padding:20px;border-radius:10px;border-left:5px solid #fc8181'>
-                    <h4 style='color:#fc8181;margin-top:0'>Possible causes</h4>
+                    <h4 style='color:#fc8181;margin-top:0'>📉 RapidAPI Quota Exceeded</h4>
+                    <p style='color:#cbd5e0;line-height:1.6'>
+                    You have run out of your subscription plan's API request quota for today or this billing cycle.
+                    </p>
                     <ul style='color:#cbd5e0;line-height:1.9'>
-                    <li>🔑 <b>Invalid API key</b> — double-check <code>RAPIDAPI_KEY</code> in your Streamlit Secrets.</li>
-                    <li>📉 <b>Quota exceeded</b> — your free RapidAPI plan limit may be reached for today.</li>
-                    <li>🌐 <b>Network timeout</b> — the Cricbuzz API may be temporarily unavailable.</li>
+                    <li>Check your API usage on the <a href='https://rapidapi.com/developer/dashboard' target='_blank' style='color:#63b3ed'>RapidAPI Developer Dashboard</a>.</li>
+                    <li>Consider upgrading your subscription tier on the Cricbuzz Cricket API pricing page.</li>
+                    <li>Wait for the quota reset period.</li>
+                    </ul>
+                    <p style='color:#a0aec0;margin-bottom:0'>Technical error: <code>{}</code></p>
+                    </div>
+                    """.format(err_msg),
+                    unsafe_allow_html=True,
+                )
+            elif "401" in err_msg or "403" in err_msg or "api error" in err_msg.lower() or "forbidden" in err_msg.lower() or "unauthorized" in err_msg.lower():
+                # Authentication / Key Card
+                st.markdown(
+                    """
+                    <div style='background:#1a202c;padding:20px;border-radius:10px;border-left:5px solid #f6ad55'>
+                    <h4 style='color:#f6ad55;margin-top:0'>🔑 Authentication or Authorization Failure</h4>
+                    <p style='color:#cbd5e0;line-height:1.6'>
+                    The request was rejected by RapidAPI. This usually means your API Key is invalid, or you are not subscribed to the Cricbuzz Cricket API.
+                    </p>
+                    <ul style='color:#cbd5e0;line-height:1.9'>
+                    <li>Double check that <code>RAPIDAPI_KEY</code> is correctly configured in your <code>.env</code> file or Streamlit Secrets.</li>
+                    <li>Verify your subscription status on the <a href='https://rapidapi.com/cricbuzz/api/cricbuzz-cricket' target='_blank' style='color:#63b3ed'>Cricbuzz Cricket API Hub</a>.</li>
                     </ul>
                     <p style='color:#a0aec0;margin-bottom:0'>Technical error: <code>{}</code></p>
                     </div>
@@ -145,5 +169,20 @@ DATABASE_URL = "sqlite:///cricbuzz_db.sqlite"</pre>
                     unsafe_allow_html=True,
                 )
             else:
-                st.error("❌ An unexpected error occurred.")
-                st.exception(e)
+                # Generic Retry/Network Card
+                st.markdown(
+                    """
+                    <div style='background:#1a202c;padding:20px;border-radius:10px;border-left:5px solid #4a5568'>
+                    <h4 style='color:#e2e8f0;margin-top:0'>⚠️ Request Timeout or Server Error</h4>
+                    <p style='color:#cbd5e0;line-height:1.6'>
+                    The request failed after multiple retries. The Cricbuzz server may be experiencing downtime, or there might be a network issue.
+                    </p>
+                    <ul style='color:#cbd5e0;line-height:1.9'>
+                    <li>Verify your internet connection and try again in a few moments.</li>
+                    <li>Check if the Cricbuzz Cricket API is responsive directly on RapidAPI.</li>
+                    </ul>
+                    <p style='color:#a0aec0;margin-bottom:0'>Technical error: <code>{}</code></p>
+                    </div>
+                    """.format(err_msg),
+                    unsafe_allow_html=True,
+                )

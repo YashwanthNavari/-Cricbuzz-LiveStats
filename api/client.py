@@ -82,6 +82,9 @@ class CricbuzzClient:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         endpoint_clean = endpoint.strip("/").replace("/", "_")
 
+        last_status_code = None
+        last_error_message = ""
+
         for attempt in range(max_retries + 1):
             logger.info(
                 f"Sending {method} {url} | Params: {params} | Attempt: {attempt + 1}"
@@ -93,12 +96,25 @@ class CricbuzzClient:
                     method=method, url=url, params=params, json=data, timeout=timeout
                 )
                 latency = time.time() - start_time
+                last_status_code = response.status_code
                 logger.info(
                     f"Response status: {response.status_code} | Latency: {latency:.2f}s"
                 )
 
-                # Handle HTTP 429 (Too Many Requests / Rate Limit)
+                # Handle HTTP 429 (Too Many Requests / Rate Limit / Quota Exceeded)
                 if response.status_code == 429:
+                    try:
+                        error_json = response.json()
+                        last_error_message = error_json.get("message", "")
+                    except Exception:
+                        last_error_message = response.text or ""
+
+                    # Detect if we hit a hard quota limit (e.g. daily/monthly limit reached).
+                    # If so, abort immediately since retrying won't help.
+                    quota_terms = ["quota", "limit exceeded", "subscribe to a subscription plan", "monthly limit", "daily limit"]
+                    if any(term in last_error_message.lower() for term in quota_terms):
+                        raise Exception(f"RapidAPI Quota Exceeded: {last_error_message}")
+
                     retry_after = response.headers.get("Retry-After")
                     sleep_time = (
                         int(retry_after)
@@ -106,7 +122,7 @@ class CricbuzzClient:
                         else (backoff_factor**attempt)
                     )
                     logger.warning(
-                        f"Rate limited (429). Retrying after sleeping for {sleep_time}s..."
+                        f"Rate limited (429). Retrying after sleeping for {sleep_time}s... Message: {last_error_message}"
                     )
                     time.sleep(sleep_time)
                     continue
@@ -147,9 +163,25 @@ class CricbuzzClient:
                     raise
             except requests.exceptions.RequestException as e:
                 logger.error(f"HTTP request error: {e}")
+                if hasattr(e, 'response') and e.response is not None:
+                    response_text = ""
+                    try:
+                        response_text = e.response.text
+                        err_json = e.response.json()
+                        msg = err_json.get("message", "")
+                        if msg:
+                            raise Exception(f"API Error ({e.response.status_code}): {msg}") from e
+                    except Exception:
+                        if response_text:
+                            # Truncate response text if it is long HTML
+                            truncated_text = response_text[:200] + "..." if len(response_text) > 200 else response_text
+                            raise Exception(f"API Error ({e.response.status_code}): {truncated_text}") from e
                 raise
 
-        raise Exception(f"Max retries ({max_retries}) reached for endpoint: {endpoint}")
+        err_detail = f"Status {last_status_code}"
+        if last_error_message:
+            err_detail += f" - {last_error_message}"
+        raise Exception(f"Max retries ({max_retries}) reached for endpoint: {endpoint} ({err_detail})")
 
     def _save_raw_response(self, entity_name: str, data: Dict[str, Any]) -> None:
         """Saves the raw JSON response to a structured subfolder inside raw_data/ ensuring no overwrite."""
